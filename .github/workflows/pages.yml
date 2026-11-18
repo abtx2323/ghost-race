@@ -1,6 +1,7 @@
 # Publishes the app to GitHub Pages on every push to main.
-# One-time setup: Settings > Pages > Build and deployment > Source: GitHub Actions.
-# (On a free GitHub plan, Pages needs the repo to be public.)
+# One-time setup: make the repo public, then Settings > Pages >
+# Build and deployment > Source: GitHub Actions, then re-run this workflow.
+# While the repo is private this job is skipped instead of failing.
 name: Deploy to GitHub Pages
 
 on:
@@ -19,6 +20,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
