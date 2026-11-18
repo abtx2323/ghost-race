@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ghost Race: race your AI agents</title>
+  <meta name="description" content="Replay AI agent sessions as a race. Load Claude Code or Codex logs, watch the ghosts race the same task, and export a clip to share.">
+  <meta property="og:title" content="Ghost Race: race your AI agents">
+  <meta property="og:description" content="Load two agent session logs and watch them race the same task. Pit stops are tool calls, crashes are errors, fuel is tokens.">
+  <meta property="og:image" content="https://abtx2323.github.io/ghost-race/docs/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#171A21">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23171A21'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%235CF2FF'/%3E%3Ccircle cx='13' cy='15' r='2.4' fill='%23fff'/%3E%3Ccircle cx='19' cy='15' r='2.4' fill='%23fff'/%3E%3Ccircle cx='13.8' cy='15' r='1.1' fill='%23171A21'/%3E%3Ccircle cx='19.8' cy='15' r='1.1' fill='%23171A21'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/ghost-race.css">
+</head>
+<body>
+  <header class="masthead">
+    <h1 class="brand"><span class="brand-word">Ghost Race</span><span class="brand-stripes" aria-hidden="true"><i></i><i></i><i></i></span></h1>
+    <p class="lede">Race your AI agents. Load two session logs from the same task and watch them go wheel to wheel: tool calls are pit stops, errors are crashes, and tokens are fuel.</p>
+    <a class="repo-link" href="https://github.com/abtx2323/ghost-race">Source on GitHub</a>
+  </header>
+
+  <main>
+    <section class="stage" aria-label="Race replay">
+      <div class="screen" id="screen">
+        <canvas id="race" width="1920" height="1080" tabindex="0" role="img" aria-label="Animated race between AI agent runs. Press space to play or pause."></canvas>
+        <div class="recording" id="recording" hidden>
+          <p><span class="rec-dot" aria-hidden="true"></span><span id="rec-text">Recording your clip</span></p>
+          <progress id="rec-progress" max="1" value="0"></progress>
+          <p class="rec-note">Keep this tab open and visible until it finishes.</p>
+          <button type="button" class="btn btn-quiet" id="rec-cancel">Cancel</button>
+        </div>
+      </div>
+
+      <div class="transport">
+        <button type="button" class="btn-play" id="play" aria-label="Play">
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h4.5v16H6zM13.5 4H18v16h-4.5z"/></svg>
+        </button>
+        <button type="button" class="btn-icon" id="restart" aria-label="Restart race">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5a7 7 0 1 1-6.6 4.7l1.9.6A5 5 0 1 0 12 7v3L7.5 6 12 2z"/></svg>
+        </button>
+        <input type="range" id="scrub" min="0" max="1000" value="0" step="1" aria-label="Race position">
+        <output id="clock" for="scrub">0:00</output>
+      </div>
+
+      <div class="settings">
+        <fieldset class="seg" id="mode">
+          <legend>Race by</legend>
+          <label><input type="radio" name="mode" value="time" checked><span>Time</span></label>
+          <label><input type="radio" name="mode" value="tokens"><span>Tokens</span></label>
+          <label><input type="radio" name="mode" value="steps"><span>Steps</span></label>
+        </fieldset>
+        <label class="check"><input type="checkbox" id="skip-idle" checked> Skip idle time</label>
+        <label class="check"><input type="checkbox" id="details"> Show file names and commands</label>
+      </div>
+      <p class="mode-note" id="mode-note">Time counts active agent time. Gaps over 30 seconds, like waiting for you to approve something, count as 30 seconds.</p>
+    </section>
+
+    <div class="panels">
+      <section class="panel" aria-labelledby="grid-title">
+        <h2 id="grid-title">On the grid</h2>
+        <ol class="grid" id="grid"></ol>
+        <p class="grid-empty" id="grid-empty" hidden>No ghosts yet. Add a session log or load the demo race.</p>
+
+        <label class="drop" id="drop" for="files">
+          <input type="file" id="files" multiple accept=".jsonl,.json,.ndjson,application/json">
+          <strong>Add session logs</strong>
+          <span>Drop .jsonl or .ghost.json files here, or tap to choose. Up to six ghosts.</span>
+        </label>
+        <div class="row">
+          <button type="button" class="btn btn-quiet" id="demo">Load the demo race</button>
+        </div>
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+
+        <details class="help">
+          <summary>Where are my logs?</summary>
+          <dl>
+            <dt>Claude Code</dt>
+            <dd>Each session is a <code>.jsonl</code> file in <code>~/.claude/projects/</code>, in a folder named after your project. List the newest with <code>ls -t ~/.claude/projects/*/*.jsonl | head</code></dd>
+            <dt>Codex CLI</dt>
+            <dd>Sessions are saved as <code>~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl</code></dd>
+            <dt>Any other agent</dt>
+            <dd>Write a small <code>.ghost.json</code> file. The format is a list of timed events; see <a href="https://github.com/abtx2323/ghost-race/blob/main/docs/FORMAT.md">the format guide</a>.</dd>
+            <dt>Can't see the folder?</dt>
+            <dd>Folders starting with a dot are hidden. On a Mac, press <kbd>Cmd</kbd> <kbd>Shift</kbd> <kbd>G</kbd> in the file picker and paste the path. On Windows, paste <code>%USERPROFILE%\.claude\projects</code> into the address bar.</dd>
+          </dl>
+          <p>For a fair race, give each agent the same task in a fresh session.</p>
+        </details>
+      </section>
+
+      <section class="panel" aria-labelledby="share-title">
+        <h2 id="share-title">Share the race</h2>
+        <label class="field">
+          <span>Race title</span>
+          <input type="text" id="title" maxlength="80" placeholder="What were the agents asked to do?">
+        </label>
+        <fieldset class="seg" id="aspect">
+          <legend>Clip shape</legend>
+          <label><input type="radio" name="aspect" value="wide" checked><span>Wide 16:9</span></label>
+          <label><input type="radio" name="aspect" value="square"><span>Square 1:1</span></label>
+        </fieldset>
+        <label class="field">
+          <span>Race length</span>
+          <select id="length">
+            <option value="10">10 seconds</option>
+            <option value="14" selected>14 seconds</option>
+            <option value="20">20 seconds</option>
+            <option value="30">30 seconds</option>
+          </select>
+        </label>
+        <p class="fine" id="clip-length">The clip adds the start lights and the results card, about 22 seconds in total.</p>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="export">Export clip</button>
+          <button type="button" class="btn btn-quiet" id="png">Save results image</button>
+        </div>
+        <p class="fine">Your logs never leave this device. Ghost Race runs entirely in your browser, and file names and commands stay hidden in clips unless you turn them on.</p>
+      </section>
+    </div>
+  </main>
+
+  <div class="drag-veil" id="drag-veil" hidden><p>Drop logs to add ghosts</p></div>
+
+  <footer class="foot">
+    <p>Ghost Race is open source under the MIT license. Fonts: Anton and Fira Sans, SIL Open Font License.</p>
+  </footer>
+
+  <script src="src/core.js"></script>
+  <script src="src/parsers.js"></script>
+  <script src="src/race.js"></script>
+  <script src="src/render.js"></script>
+  <script src="src/export.js"></script>
+  <script src="src/demo.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,458 @@
+{
+  "ghostrace": 1,
+  "title": "Fix the flaky checkout test",
+  "runs": [
+    {
+      "name": "The Planner",
+      "model": "demo",
+      "task": "Fix the flaky checkout test",
+      "events": [
+        {
+          "t": 0,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 14000,
+          "detail": "Mapping the checkout flow before touching anything."
+        },
+        {
+          "t": 18,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 17000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 39,
+          "type": "tool",
+          "name": "Grep",
+          "tokens": 16000,
+          "detail": "retry|setTimeout"
+        },
+        {
+          "t": 61,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 19000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 84,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 20000,
+          "detail": "cart.ts"
+        },
+        {
+          "t": 108,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 15000,
+          "detail": "Found it: the mock resolves after the test timeout."
+        },
+        {
+          "t": 131,
+          "type": "tool",
+          "name": "TodoWrite",
+          "tokens": 12000,
+          "detail": "3-step plan"
+        },
+        {
+          "t": 156,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 24000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 176,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 23000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 192,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 27000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 211,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 29000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 226,
+          "type": "tool",
+          "name": "Grep",
+          "tokens": 22000,
+          "detail": "mockPayment"
+        },
+        {
+          "t": 241,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 26000,
+          "detail": "cart.test.ts"
+        },
+        {
+          "t": 258,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 31000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 276,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 18000,
+          "command": "git diff --stat",
+          "detail": "git diff --stat"
+        },
+        {
+          "t": 298,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 21000,
+          "detail": "Fixed. The mock now awaits the timer and all tests pass."
+        }
+      ]
+    },
+    {
+      "name": "Speed Demon",
+      "model": "demo",
+      "task": "Fix the flaky checkout test",
+      "events": [
+        {
+          "t": 0,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 9000,
+          "detail": "On it."
+        },
+        {
+          "t": 9,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 22000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 21,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 24000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 30,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "1 failing: checkout > pays"
+        },
+        {
+          "t": 38,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 18000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 50,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 23000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 62,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 26000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 71,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "Timeout of 5000ms exceeded"
+        },
+        {
+          "t": 80,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 19000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 92,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 25000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 104,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 28000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 118,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 30000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 139,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "cart.test.ts now failing"
+        },
+        {
+          "t": 171,
+          "type": "tool",
+          "name": "Grep",
+          "tokens": 21000,
+          "detail": "mockPayment"
+        },
+        {
+          "t": 205,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 23000,
+          "detail": "cart.test.ts"
+        },
+        {
+          "t": 236,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 27000,
+          "detail": "cart.test.ts"
+        },
+        {
+          "t": 263,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 32000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 291,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 24000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 312,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 33000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 331,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 16000,
+          "detail": "All green now."
+        }
+      ]
+    },
+    {
+      "name": "Loop Goblin",
+      "model": "demo",
+      "task": "Fix the flaky checkout test",
+      "events": [
+        {
+          "t": 0,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 12000,
+          "detail": "Let me check everything."
+        },
+        {
+          "t": 20,
+          "type": "tool",
+          "name": "Task",
+          "tokens": 38000,
+          "detail": "Explore the test suite"
+        },
+        {
+          "t": 61,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 26000,
+          "detail": "checkout.test.ts"
+        },
+        {
+          "t": 80,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 30000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 92,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "1 failing"
+        },
+        {
+          "t": 101,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 31000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 113,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "1 failing"
+        },
+        {
+          "t": 121,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 33000,
+          "command": "npm test -- checkout --retries=3",
+          "detail": "npm test -- checkout --retries=3"
+        },
+        {
+          "t": 140,
+          "type": "tool",
+          "name": "WebSearch",
+          "tokens": 29000,
+          "detail": "jest flaky test timeout"
+        },
+        {
+          "t": 166,
+          "type": "tool",
+          "name": "WebFetch",
+          "tokens": 35000,
+          "detail": "jest docs: timer mocks"
+        },
+        {
+          "t": 190,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 36000,
+          "detail": "jest.config.js"
+        },
+        {
+          "t": 208,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 38000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 222,
+          "type": "error",
+          "name": "Bash",
+          "tokens": 0,
+          "detail": "still flaky"
+        },
+        {
+          "t": 236,
+          "type": "tool",
+          "name": "Read",
+          "tokens": 37000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 262,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 30000,
+          "detail": "Maybe the mock is the problem."
+        },
+        {
+          "t": 287,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 41000,
+          "detail": "payment-mock.ts"
+        },
+        {
+          "t": 309,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 43000,
+          "command": "npm test -- checkout",
+          "detail": "npm test -- checkout"
+        },
+        {
+          "t": 333,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 45000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 358,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 44000,
+          "detail": "cart.test.ts"
+        },
+        {
+          "t": 384,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 47000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 405,
+          "type": "tool",
+          "name": "Edit",
+          "tokens": 40000,
+          "detail": "jest.config.js"
+        },
+        {
+          "t": 428,
+          "type": "tool",
+          "name": "Bash",
+          "tokens": 48000,
+          "command": "npm test",
+          "detail": "npm test"
+        },
+        {
+          "t": 452,
+          "type": "talk",
+          "name": "reply",
+          "tokens": 26000,
+          "detail": "Should be fixed now, I think."
+        }
+      ]
+    }
+  ]
+}

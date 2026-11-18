@@ -1,0 +1,12 @@
+{
+  "name": "ghost-race",
+  "version": "0.1.0",
+  "description": "Race your AI agents: replay agent session logs as a race and export a clip.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "build": "node tools/build-single.mjs"
+  },
+  "engines": { "node": ">=20" }
+}
