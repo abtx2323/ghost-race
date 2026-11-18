@@ -10,6 +10,7 @@
   const $ = (id) => doc.getElementById(id);
 
   const MAX_GHOSTS = 6;
+  const MAX_FILE_BYTES = 300 * 1024 * 1024;
   const reducedMotion = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const state = {
@@ -257,6 +258,10 @@
     for (const file of files) {
       if (state.runs.length >= MAX_GHOSTS) {
         errors.push('The grid is full at ' + MAX_GHOSTS + ' ghosts, so ' + file.name + ' was skipped.');
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        errors.push(file.name + ' is ' + Math.round(file.size / 1048576) + ' MB, over the ' + Math.round(MAX_FILE_BYTES / 1048576) + ' MB limit. Trim it to the session you want to race.');
         continue;
       }
       try {

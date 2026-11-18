@@ -13,6 +13,10 @@ let css = read('css/ghost-race.css').replace(/url\("\.\.\/fonts\/([^"]+)"\)/g, (
 });
 
 let html = read('index.html');
+// The bundle inlines its scripts and styles, so the page's strict CSP can't
+// apply as written. Hosts that serve the bundle (like a Claude artifact) set
+// their own policy, so drop the meta tag here.
+html = html.replace(/\s*<!-- No network access[^>]*-->\s*<meta http-equiv="Content-Security-Policy"[^>]*>/, '');
 html = html.replace('<link rel="stylesheet" href="css/ghost-race.css">', () => `<style>\n${css}\n</style>`);
 html = html.replace(/<script src="(src\/[^"]+)"><\/script>/g, (_, src) => `<script>\n${read(src).replace(/<\/script/gi, '<\\/script')}\n</script>`);
 

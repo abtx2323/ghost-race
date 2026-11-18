@@ -71,8 +71,40 @@
     return 'shell';
   };
 
-  GR.categoryLabel = (cat) => (CATEGORIES[cat] || CATEGORIES.other).label;
-  GR.categoryColor = (cat) => (CATEGORIES[cat] || CATEGORIES.other).color;
+  // Logs are untrusted input: only accept keys the map really owns, so values
+  // like "__proto__" or "constructor" can't reach Object.prototype.
+  GR.own = (obj, key) => typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key);
+  GR.isCategory = (cat) => GR.own(CATEGORIES, cat);
+  GR.categoryLabel = (cat) => (GR.isCategory(cat) ? CATEGORIES[cat] : CATEGORIES.other).label;
+  GR.categoryColor = (cat) => (GR.isCategory(cat) ? CATEGORIES[cat] : CATEGORIES.other).color;
+
+  // Scrub secrets and home-folder usernames out of any text that could be
+  // shown on the track or in an exported clip. Input is capped first so a
+  // huge command can't make the patterns slow.
+  const REDACTED = '[redacted]';
+  const SECRET_PATTERNS = [
+    [/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g, REDACTED],
+    [/\b(?:sk|pk|rk)-[A-Za-z0-9_-]{16,}/g, REDACTED],
+    [/\bgh[pousr]_[A-Za-z0-9]{20,}/g, REDACTED],
+    [/\bgithub_pat_[A-Za-z0-9_]{20,}/g, REDACTED],
+    [/\bglpat-[A-Za-z0-9_-]{20,}/g, REDACTED],
+    [/\bnpm_[A-Za-z0-9]{30,}/g, REDACTED],
+    [/\bxox[abprs]-[A-Za-z0-9-]{10,}/g, REDACTED],
+    [/\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, REDACTED],
+    [/\bAIza[0-9A-Za-z_-]{30,}/g, REDACTED],
+    [/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, REDACTED],
+    [/\b(bearer|basic)\s+[^\s"']+/gi, '$1 ' + REDACTED],
+    [/\b([A-Za-z0-9_]*(?:token|secret|password|passwd|pwd|api_?key|apikey|access_?key|private_?key|credentials?)[A-Za-z0-9_]*)(["']?\s*[:=]\s*)(["']?)[^\s"'&,;]+/gi, '$1$2$3' + REDACTED],
+    [/(--?(?:token|password|passwd|api-key|apikey|secret|auth)[\s=]+)[^\s"']+/gi, '$1' + REDACTED],
+    [/(\b[a-z][a-z0-9+.-]*:\/\/)[^\s\/:@]+:[^\s\/@]+@/gi, '$1' + REDACTED + '@'],
+    [/\/(?:Users|home)\/[^\/\s"']+/g, '~'],
+    [/\b[A-Za-z]:\\Users\\[^\\\s"']+/gi, '~'],
+  ];
+  GR.redact = function redact(text) {
+    let s = String(text == null ? '' : text).slice(0, 400);
+    for (const [re, rep] of SECRET_PATTERNS) s = s.replace(re, rep);
+    return s;
+  };
 
   // "claude-opus-4-5-20251101" -> "Opus 4.5", "gpt-5.1-codex-max" -> "GPT-5.1 Codex Max"
   GR.prettyModel = function prettyModel(model) {

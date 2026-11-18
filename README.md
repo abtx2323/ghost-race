@@ -49,7 +49,13 @@ Hidden folders tripping you up? On a Mac, press <kbd>Cmd</kbd> <kbd>Shift</kbd> 
 
 ## Privacy
 
-Session logs can contain your code, file paths and prompts, so Ghost Race never uploads anything. Parsing, rendering and video encoding all happen in your browser. File names and commands are hidden on the track unless you turn on "Show file names and commands", and the race title is whatever you type.
+Session logs can contain your code, file paths, prompts and sometimes secrets, so Ghost Race is built to keep them on your device:
+
+- **No network access.** There's no server, and the page's Content Security Policy blocks every outgoing request. Parsing, rendering and video encoding all happen in your browser.
+- **Details off by default.** File names and commands only appear on the track if you turn on "Show file names and commands". The race title is whatever you type.
+- **Secrets scrubbed.** When details are on, API keys, tokens, passwords, credentials in URLs, private keys and home-folder usernames are replaced with `[redacted]`. It's pattern-based, so watch your clip before posting if you turned details on.
+
+See [SECURITY.md](SECURITY.md) to report a problem.
 
 ## Supported logs
 

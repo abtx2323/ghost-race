@@ -148,3 +148,64 @@ test('examples/demo-race.ghost.json loads three ghosts', () => {
   const runs = GR.parseLog(read('demo-race.ghost.json'), 'demo-race.ghost.json');
   assert.deepEqual(runs.map((r) => r.name), ['The Planner', 'Speed Demon', 'Loop Goblin']);
 });
+
+test('Secrets and home-folder usernames are scrubbed from anything shown on the track', () => {
+  const cases = [
+    ['curl -H "Authorization: Bearer sk-ant-api03-AbCdEf1234567890xyz" https://api.example.com', ['sk-ant', 'AbCdEf1234567890xyz']],
+    ['export GITHUB_TOKEN=ghp_abcdefghijklmnopqrstuvwxyz123456 && gh pr list', ['ghp_abcdef']],
+    ['OPENAI_API_KEY=sk-proj-0123456789abcdefABCDEF python run.py', ['sk-proj', '0123456789abcdef']],
+    ['psql postgres://admin:hunter2@db.internal/app', ['hunter2']],
+    ['cat /Users/alexsmith/project/.env', ['alexsmith']],
+    ['mysql --password=correcthorse -u root', ['correcthorse']],
+    ['echo {"api_key": "live_12345abcde"}', ['live_12345abcde']],
+    ['aws s3 ls --profile x AKIAIOSFODNN7EXAMPLE', ['AKIAIOSFODNN7EXAMPLE']],
+    ['curl -H "x-jwt: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"', ['eyJhbGciOiJIUzI1NiJ9']],
+  ];
+  for (const [cmd, secrets] of cases) {
+    const [run] = GR.parseLog(JSON.stringify({ events: [{ t: 0, type: 'tool', name: 'Bash', command: cmd }, { t: 1, type: 'message' }] }), 's.ghost.json');
+    const shown = run.events[0].detail;
+    for (const secret of secrets) assert.ok(!shown.includes(secret), `"${secret}" leaked in: ${shown}`);
+  }
+  // ordinary commands are left alone
+  assert.equal(GR.redact('npm test -- checkout'), 'npm test -- checkout');
+  assert.equal(GR.redact('rg -n token src'), 'rg -n token src');
+});
+
+test('Claude Code tool results and prompts are redacted too', () => {
+  const lines = [
+    { type: 'user', uuid: 'a', sessionId: 's', timestamp: '2026-01-01T00:00:00Z', message: { role: 'user', content: 'deploy with key sk-live-abcdefghijklmnop1234' } },
+    { type: 'assistant', uuid: 'b', sessionId: 's', timestamp: '2026-01-01T00:00:01Z', message: { id: 'm1', role: 'assistant', model: 'claude-sonnet-4-5', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'curl -u bob:s3cretpass https://x' } }], usage: { input_tokens: 1, output_tokens: 1 } } },
+    { type: 'user', uuid: 'c', sessionId: 's', timestamp: '2026-01-01T00:00:02Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', is_error: true, content: 'Error: password=hunter2 rejected' }] } },
+    { type: 'assistant', uuid: 'd', sessionId: 's', timestamp: '2026-01-01T00:00:03Z', message: { id: 'm2', role: 'assistant', model: 'claude-sonnet-4-5', content: [{ type: 'text', text: 'done' }], usage: { input_tokens: 1, output_tokens: 1 } } },
+  ];
+  const [run] = GR.parseLog(lines.map((l) => JSON.stringify(l)).join('\n'), 'x.jsonl');
+  const all = JSON.stringify(run);
+  assert.ok(!all.includes('sk-live-abcdefghijklmnop1234'));
+  assert.ok(!all.includes('hunter2'));
+});
+
+test('Hostile .ghost.json values are ignored instead of breaking the race', () => {
+  const runs = GR.parseLog(
+    '{"runs":[{"name":{"x":1},"events":[' +
+      '{"t":0,"type":"tool","name":"x","category":"__proto__","tokens":-500},' +
+      '{"t":1,"type":"constructor","tokens":"lots"},' +
+      '{"t":2,"type":"error","name":"x","category":"toString"},' +
+      '{"t":3,"type":"message","tokens":1e400}]}]}',
+    'evil.ghost.json'
+  );
+  const [run] = runs;
+  assert.equal(typeof run.name, 'string');
+  for (const e of run.events) {
+    assert.equal(typeof e.kind, 'string');
+    assert.ok(e.cat === 'talk' || GR.isCategory(e.cat), 'bad category ' + e.cat);
+    assert.ok(Number.isFinite(e.tokens) && e.tokens >= 0);
+  }
+  assert.equal(GR.categoryColor('__proto__'), GR.CATEGORIES.other.color);
+  const race = GR.buildRace(runs, { mode: 'time' });
+  assert.ok(Number.isFinite(race.maxX));
+});
+
+test('Oversized ghost files are refused with a clear message', () => {
+  const events = Array.from({ length: 200001 }, (_, i) => ({ t: i, type: 'tool' }));
+  assert.throws(() => GR.parseLog(JSON.stringify({ events }), 'huge.ghost.json'), /more than 200,000 events/);
+});

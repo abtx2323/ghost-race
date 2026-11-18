@@ -3,6 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- No network access at all: logs can't be sent anywhere, even by a bad change to this code. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
   <title>Ghost Race: race your AI agents</title>
   <meta name="description" content="Replay AI agent sessions as a race. Load Claude Code or Codex logs, watch the ghosts race the same task, and export a clip to share.">
   <meta property="og:title" content="Ghost Race: race your AI agents">

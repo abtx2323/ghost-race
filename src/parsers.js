@@ -21,10 +21,15 @@
 
   // ---------------------------------------------------------------- utils --
 
+  const MAX_EVENTS = 200000;
+  const MAX_LINES = 1000000;
+
   function parseJsonl(text) {
     const lines = [];
     let bad = 0;
-    for (const raw of String(text).split(/\r?\n/)) {
+    const rawLines = String(text).split(/\r?\n/);
+    if (rawLines.length > MAX_LINES) throw new Error('This log has more than ' + MAX_LINES.toLocaleString() + ' lines, which is more than Ghost Race can read.');
+    for (const raw of rawLines) {
       const line = raw.trim();
       if (!line) continue;
       try {
@@ -71,21 +76,31 @@
   function toolDetail(name, input) {
     if (input == null) return '';
     if (typeof input === 'string') {
-      const m = input.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/);
-      if (m) return GR.basename(m[1].trim());
-      return GR.truncate(input, 80);
+      const m = input.slice(0, 2000).match(/\*\*\* (?:Update|Add|Delete) File: (.+)/);
+      if (m) return safeText(GR.basename(m[1].trim()), 80);
+      return safeText(input, 80);
     }
     const i = input;
     const cmd = i.command != null ? i.command : i.cmd;
-    if (cmd != null) return GR.truncate(commandText(cmd), 80);
+    if (cmd != null) return safeText(commandText(cmd), 80);
     const file = i.file_path || i.path || i.notebook_path || i.filename || i.target_file;
-    if (file) return GR.basename(file);
-    if (i.pattern) return GR.truncate(i.pattern, 60);
-    if (i.query) return GR.truncate(i.query, 60);
-    if (i.url) return GR.truncate(i.url, 60);
-    if (i.description) return GR.truncate(i.description, 60);
-    if (i.subagent_type) return String(i.subagent_type);
+    if (file) return safeText(GR.basename(file), 80);
+    if (i.pattern) return safeText(i.pattern, 60);
+    if (i.query) return safeText(i.query, 60);
+    if (i.url) return safeText(i.url, 60);
+    if (i.description) return safeText(i.description, 60);
+    if (i.subagent_type) return safeText(i.subagent_type, 40);
     return '';
+  }
+
+  // Everything shown from a log goes through redaction first, then truncation.
+  function safeText(s, n) {
+    return GR.truncate(GR.redact(s), n);
+  }
+
+  function nonNeg(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
   function toolCommand(input) {
@@ -168,7 +183,7 @@
           for (const b of content) {
             if (b && b.type === 'tool_result' && b.is_error === true) {
               const tool = toolNames.get(b.tool_use_id) || { name: 'tool', cat: 'other' };
-              events.push({ ts, kind: 'crash', name: tool.name, cat: tool.cat, detail: GR.truncate(textOf(b.content), 80), tokens });
+              events.push({ ts, kind: 'crash', name: tool.name, cat: tool.cat, detail: safeText(textOf(b.content), 80), tokens });
             }
           }
         }
@@ -188,7 +203,7 @@
       if (l.isApiErrorMessage || msg.model === '<synthetic>') {
         const text = textOf(msg.content);
         if (/error|overloaded|rate.?limit|timeout/i.test(text)) {
-          events.push({ ts, kind: 'crash', name: 'API', cat: 'other', detail: GR.truncate(text, 80), tokens });
+          events.push({ ts, kind: 'crash', name: 'API', cat: 'other', detail: safeText(text, 80), tokens });
         }
         return;
       }
@@ -196,7 +211,7 @@
       for (const b of content) {
         if (!b) continue;
         if (b.type === 'text' && String(b.text || '').trim()) {
-          events.push({ ts, kind: 'talk', name: 'reply', cat: 'talk', detail: GR.truncate(b.text, 80), tokens, sidechain: !!l.isSidechain });
+          events.push({ ts, kind: 'talk', name: 'reply', cat: 'talk', detail: safeText(b.text, 80), tokens, sidechain: !!l.isSidechain });
         } else if (b.type === 'tool_use' || b.type === 'server_tool_use') {
           const ev = makeTool(0, b.name, b.input, tokens, { sidechain: !!l.isSidechain });
           toolNames.set(b.id, { name: ev.name, cat: ev.cat });
@@ -308,7 +323,7 @@
             }
           } else if (p.role === 'assistant' && text.trim()) {
             if (!Number.isFinite(t0)) t0 = ts;
-            events.push({ ts, kind: 'talk', name: 'reply', cat: 'talk', detail: GR.truncate(text, 80), tokens });
+            events.push({ ts, kind: 'talk', name: 'reply', cat: 'talk', detail: safeText(text, 80), tokens });
           }
           break;
         }
@@ -390,37 +405,40 @@
       let finishTs = NaN;
       let base = NaN;
       const lastCat = new Map();
-      (r.events || []).forEach((e, k) => {
-        if (!e) return;
+      const evs = Array.isArray(r.events) ? r.events : [];
+      if (evs.length > MAX_EVENTS) throw new Error((fileName || 'This file') + ' has more than ' + MAX_EVENTS.toLocaleString() + ' events, which is more than Ghost Race can draw.');
+      evs.forEach((e, k) => {
+        if (!e || typeof e !== 'object') return;
         let ts;
-        if (typeof e.t === 'number') ts = e.t * 1000;
+        if (typeof e.t === 'number') ts = Number.isFinite(e.t) ? e.t * 1000 : NaN;
         else if (e.t != null || e.time != null || e.timestamp != null) {
           ts = GR.parseTime(e.t != null ? e.t : e.time != null ? e.time : e.timestamp);
           if (Number.isFinite(ts) && !Number.isFinite(base)) base = ts;
         } else ts = k * 1000;
         if (!Number.isFinite(ts)) ts = k * 1000;
-        const kind = GHOST_KIND[String(e.type || e.kind || 'tool').toLowerCase()] || 'tool';
-        tokens += Number(e.tokens) || 0;
-        cost += Number(e.cost) || 0;
+        const typeKey = String(e.type || e.kind || 'tool').toLowerCase();
+        const kind = GR.own(GHOST_KIND, typeKey) ? GHOST_KIND[typeKey] : 'tool';
+        tokens += nonNeg(e.tokens);
+        cost += nonNeg(e.cost);
         if (kind === 'start') return;
         if (kind === 'finish') {
           finishTs = ts;
           return;
         }
-        const name = e.name || (kind === 'talk' ? 'reply' : 'tool');
+        const name = typeof e.name === 'string' && e.name ? e.name.slice(0, 60) : kind === 'talk' ? 'reply' : 'tool';
         if (kind === 'tool') {
-          const ev = makeTool(0, name, e.input || (e.command ? { command: e.command } : null), tokens);
+          const ev = makeTool(0, name, e.input || (e.command ? { command: String(e.command) } : null), tokens);
           ev.ts = ts;
-          if (e.category && GR.CATEGORIES[e.category]) ev.cat = e.category;
-          if (e.detail) ev.detail = GR.truncate(e.detail, 80);
+          if (GR.isCategory(e.category)) ev.cat = e.category;
+          if (e.detail) ev.detail = safeText(e.detail, 80);
           events.push(ev);
           lastCat.set(ev.name, ev.cat);
           if (e.error === true || e.ok === false) {
-            events.push({ ts: ts + 1, kind: 'crash', name: ev.name, cat: ev.cat, detail: e.detail ? GR.truncate(e.detail, 80) : '', tokens });
+            events.push({ ts: ts + 1, kind: 'crash', name: ev.name, cat: ev.cat, detail: e.detail ? safeText(e.detail, 80) : '', tokens });
           }
         } else {
-          const cat = kind !== 'crash' ? 'talk' : e.category && GR.CATEGORIES[e.category] ? e.category : lastCat.get(name) || GR.categorizeTool(name, e.command);
-          events.push({ ts, kind, name, cat, detail: GR.truncate(e.detail || '', 80), tokens });
+          const cat = kind !== 'crash' ? 'talk' : GR.isCategory(e.category) ? e.category : lastCat.get(name) || GR.categorizeTool(name, e.command);
+          events.push({ ts, kind, name, cat, detail: safeText(e.detail || '', 80), tokens });
         }
       });
       const t0 = Number.isFinite(base) ? base : 0;
@@ -428,9 +446,9 @@
         source: 'ghost-json',
         sourceLabel: 'Ghost JSON',
         file: fileName,
-        model: r.model || null,
-        name: r.name || null,
-        task: r.task || null,
+        model: typeof r.model === 'string' ? r.model.slice(0, 80) : null,
+        name: typeof r.name === 'string' && r.name.trim() ? r.name.trim().slice(0, 40) : null,
+        task: typeof r.task === 'string' ? r.task : null,
         t0,
         synthetic: false,
         events,
@@ -500,7 +518,7 @@
       source: r.source,
       sourceLabel: r.sourceLabel,
       file: r.file || null,
-      task: r.task ? GR.truncate(r.task, 200) : null,
+      task: r.task ? safeText(r.task, 200) : null,
       timing: r.synthetic ? 'synthetic' : 'real',
       outcome,
       events,

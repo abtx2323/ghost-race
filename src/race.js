@@ -165,13 +165,13 @@
     const moments = [];
     const { racers, maxX } = race;
     if (race.fork) {
-      const parts = race.fork.picks.map((pk) => pk.racer.code + ' ' + (pk.cat ? VERBS[pk.cat] || VERBS.other : 'stops using tools'));
+      const parts = race.fork.picks.map((pk) => pk.racer.code + ' ' + (pk.cat ? (GR.own(VERBS, pk.cat) ? VERBS[pk.cat] : VERBS.other) : 'stops using tools'));
       moments.push({ x: race.fork.x, kind: 'fork', title: 'Fork at move ' + race.fork.move, text: listJoin(parts) + '.' });
     }
     for (const r of racers) {
       for (const e of r.events) {
         if (e.kind !== 'crash') continue;
-        const noun = e.name === 'API' ? 'an API error' : CRASH_NOUNS[e.cat] || CRASH_NOUNS.other;
+        const noun = e.name === 'API' ? 'an API error' : GR.own(CRASH_NOUNS, e.cat) ? CRASH_NOUNS[e.cat] : CRASH_NOUNS.other;
         moments.push({ x: e.x, kind: 'crash', title: 'Crash', text: r.code + ' crashes on ' + noun + '.', racer: r });
       }
     }
