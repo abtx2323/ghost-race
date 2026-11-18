@@ -1,6 +1,55 @@
-# The Ghost Race format
+# Log formats
 
-Ghost Race reads Claude Code and Codex CLI logs as they are. For any other agent, write a small `.ghost.json` file. It's a list of timed events, so an adapter for your framework is usually a few lines of code.
+Ghost Race reads these as they are:
+
+- **Claude Code** session transcripts (`~/.claude/projects/<project>/<session>.jsonl`) and `claude -p --output-format stream-json --verbose` output
+- **Codex CLI** rollouts (`~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`) and `codex exec --json` output
+- **Gemini CLI** saved chats (`~/.gemini/tmp/<project>/chats/session-*.json`) and `/chat save` checkpoints
+- **OpenAI Agents SDK** span exports (see below)
+- **OpenTelemetry** traces as OTLP JSON (see below)
+
+For any other agent, write a small `.ghost.json` file. It's a list of timed events, so an adapter for your framework is usually a few lines of code.
+
+## OpenAI Agents SDK
+
+The SDK sends traces to the OpenAI dashboard by default. To also save them for Ghost Race, add a tracing processor that writes each span as a line of JSON:
+
+```python
+import json
+from agents import add_trace_processor
+from agents.tracing import TracingProcessor
+
+class GhostRaceExporter(TracingProcessor):
+    def __init__(self, path="agents-trace.jsonl"):
+        self.file = open(path, "a")
+
+    def _write(self, item):
+        self.file.write(json.dumps(item.export(), default=str) + "\n")
+        self.file.flush()
+
+    def on_trace_start(self, trace): pass
+    def on_trace_end(self, trace): self._write(trace)
+    def on_span_start(self, span): pass
+    def on_span_end(self, span): self._write(span)
+    def shutdown(self): self.file.close()
+    def force_flush(self): self.file.flush()
+
+add_trace_processor(GhostRaceExporter())
+```
+
+Each trace in the file becomes a ghost, named after its workflow. Function calls are pit stops, failed calls and tripped guardrails are crashes, hand-offs show as SUB-AGENT, and generation usage is the fuel. (This matches the SDK's tracing API at the time of writing; check its docs if the import paths have moved.)
+
+## OpenTelemetry
+
+Export traces as OTLP JSON: one document with `resourceSpans`, or one document per line. Ghost Race reads:
+
+- the OpenTelemetry GenAI conventions: `gen_ai.operation.name` (`chat`, `execute_tool`), `gen_ai.tool.name`, `gen_ai.usage.input_tokens` and `output_tokens`, `gen_ai.request.model`
+- OpenInference (Arize Phoenix): `openinference.span.kind` (`LLM`, `TOOL`, `RETRIEVER`), `llm.token_count.*`, `llm.model_name`, `tool.name`
+- OpenLLMetry (Traceloop): `traceloop.span.kind = tool`
+
+Each trace becomes a ghost, up to six. Spans with an error status become crashes. Tool arguments and outputs are never read.
+
+# The Ghost Race format
 
 ## One run
 

@@ -57,7 +57,7 @@
     if (W / H >= 1.3) {
       const s = W / 1920;
       return {
-        square: false, s, W, H,
+        kind: 'wide', square: false, tall: false, narrow: false, s, W, H,
         tower: { x: 48 * s, y: 52 * s, w: 436 * s, h: H - 104 * s },
         track: { x: 556 * s, y: 70 * s, w: 1316 * s, h: 850 * s },
         control: { cx: (556 + 658) * s, y: 952 * s },
@@ -65,8 +65,19 @@
       };
     }
     const s = W / 1080;
+    if (W / H < 0.8) {
+      // 9:16 for phone feeds
+      return {
+        kind: 'tall', square: false, tall: true, narrow: true, s, W, H,
+        header: { x: 60 * s, y: 76 * s, w: 960 * s },
+        track: { x: 84 * s, y: 330 * s, w: 912 * s, h: 780 * s },
+        control: { cx: 540 * s, y: 1196 * s },
+        tower: { x: 60 * s, y: 1276 * s, w: 960 * s, h: 470 * s },
+        laneW: 13 * s,
+      };
+    }
     return {
-      square: true, s, W, H,
+      kind: 'square', square: true, tall: false, narrow: true, s, W, H,
       header: { x: 44 * s, y: 36 * s, w: 992 * s },
       track: { x: 70 * s, y: 176 * s, w: 940 * s, h: 462 * s },
       control: { cx: 540 * s, y: 712 * s },
@@ -243,7 +254,7 @@
       for (let y = L.track.y; y <= L.track.y + L.track.h; y += step) g.fillRect(x, y, 1.6 * s, 1.6 * s);
     }
 
-    if (!L.square) {
+    if (!L.narrow) {
       g.fillStyle = 'rgba(255,255,255,0.025)';
       roundRect(g, L.tower.x - 16 * s, L.tower.y - 16 * s, L.tower.w + 32 * s, L.tower.h + 32 * s, 14 * s);
       g.fill();
@@ -604,7 +615,7 @@
       if (j > i && frame.phase === 'race') climbed.set(row.racer, true);
     });
 
-    if (L.square) drawHeaderSquare(g, L, race, frame, opts);
+    if (L.narrow) drawHeaderSquare(g, L, race, frame, opts);
     else drawTowerHeader(g, L, race, frame, opts);
     drawRows(g, L, race, rows, rankY, climbed, x, frame);
     if (!L.square) drawKey(g, L, race.racers.length);
@@ -687,6 +698,21 @@
   function drawHeaderSquare(g, L, race, frame, opts) {
     const Hd = L.header;
     const s = L.s;
+    if (L.tall) {
+      // stacked: wordmark, then title, then a big clock
+      drawWordmark(g, Hd.x, Hd.y + 58 * s, 68 * s);
+      font(g, TEXT, 500, 26 * s);
+      g.fillStyle = C.dim;
+      wrap(g, opts.title || 'Agent race', Hd.w, 2).forEach((line, i) => g.fillText(line, Hd.x, Hd.y + 108 * s + i * 32 * s));
+      font(g, DISPLAY, 400, 84 * s);
+      g.fillStyle = C.paint;
+      g.fillText(GR.formatClock(race, frame.x), Hd.x, Hd.y + 222 * s);
+      const cw = g.measureText(GR.formatClock(race, frame.x)).width;
+      font(g, TEXT, 500, 20 * s);
+      g.fillStyle = C.dim;
+      g.fillText(UNIT[race.mode], Hd.x + cw + 16 * s, Hd.y + 222 * s);
+      return;
+    }
     drawWordmark(g, Hd.x, Hd.y + 50 * s, 54 * s);
     font(g, TEXT, 500, 19 * s);
     g.fillStyle = C.dim;
@@ -701,15 +727,21 @@
     g.textAlign = 'left';
   }
 
+  function rowsGeom(L, n) {
+    const s = L.s;
+    const T = L.tower;
+    const compact = L.square;
+    const offset = L.narrow ? 0 : 284 * s;
+    const avail = T.h - offset;
+    return { compact, top: T.y + offset, avail, rh: Math.min(compact ? 60 * s : 96 * s, avail / Math.max(n, 1)) };
+  }
+
   function drawRows(g, L, race, rows, rankY, climbed, x, frame) {
     const onGrid = frame.phase === 'intro' || x <= 0;
     const s = L.s;
     const T = L.tower;
     const n = rows.length;
-    const compact = L.square;
-    const top = compact ? T.y : T.y + 284 * s;
-    const avail = compact ? T.h : T.h - 284 * s;
-    const rh = Math.min(compact ? 60 * s : 96 * s, avail / Math.max(n, 1));
+    const { compact, top, rh } = rowsGeom(L, n);
     const leaderRow = rows[0];
     // fastest completed sector so far, per sector
     const best = [0, 1, 2].map((k) => {
@@ -830,8 +862,9 @@
   function drawKey(g, L, n) {
     const s = L.s;
     const T = L.tower;
-    const top = T.y + T.h - 156 * s;
-    const rowsEnd = T.y + 284 * s + Math.min(96 * s, (T.h - 284 * s) / Math.max(n, 1)) * n;
+    const top = L.tall ? L.H - 200 * s : T.y + T.h - 156 * s;
+    const geo = rowsGeom(L, n);
+    const rowsEnd = geo.top + geo.rh * n;
     if (rowsEnd > top - 12 * s) return;
     const items = [
       ['pit', 'Pit stop: the agent used a tool'],
@@ -887,7 +920,7 @@
   function drawLights(g, L, t) {
     const s = L.s;
     const cx = L.track.x + L.track.w / 2;
-    const cy = L.track.y + L.track.h * (L.square ? 0.5 : 0.52);
+    const cy = L.track.y + L.track.h * (L.narrow ? 0.5 : 0.52);
     const lit = t >= 2.1 ? 0 : GR.clamp(Math.floor((t - 0.2) / 0.36) + 1, 0, 5);
     const r = 24 * s;
     const gap = 66 * s;
@@ -931,7 +964,7 @@
     const age = (x - m.x) / xPerSec;
     const alpha = frame.phase === 'hold' ? GR.clamp(1 - frame.phaseT / 0.5, 0, 1) : age < 0.15 ? age / 0.15 : age > LIFE - 0.35 ? (LIFE - age) / 0.35 : 1;
     font(g, TEXT, 500, 22 * s);
-    const tw = Math.min(g.measureText(m.text).width, (L.square ? 860 : 1200) * s);
+    const tw = Math.min(g.measureText(m.text).width, (L.narrow ? 860 : 1200) * s);
     const w = tw + 52 * s;
     const h = 66 * s;
     const bx = L.control.cx - w / 2;
@@ -958,8 +991,8 @@
     const age = frame.phase === 'hold' ? (race.maxX - r.xEnd) / xPerSec + frame.phaseT : (x - r.xEnd) / xPerSec;
     const a = ease(age / 0.45);
     const cx = L.track.x + L.track.w / 2;
-    const y = L.track.y + (L.square ? 6 : 20) * s - (1 - a) * 20 * s;
-    font(g, DISPLAY, 400, (L.square ? 54 : 66) * s);
+    const y = L.track.y + (L.narrow ? 6 : 20) * s - (1 - a) * 20 * s;
+    font(g, DISPLAY, 400, (L.narrow ? 54 : 66) * s);
     const head = r.run.name + ' wins';
     const hw = g.measureText(head).width;
     font(g, TEXT, 500, 20 * s);
@@ -968,7 +1001,7 @@
     const sub = resultText(race, r) + unit + ', ' + st.tools + ' pit stops, ' + st.crashes + (st.crashes === 1 ? ' crash' : ' crashes');
     const sw = g.measureText(sub).width;
     const w = Math.max(hw, sw) + 64 * s;
-    const h = (L.square ? 104 : 120) * s;
+    const h = (L.narrow ? 104 : 120) * s;
     g.globalAlpha = a;
     g.fillStyle = 'rgba(14,15,19,0.92)';
     roundRect(g, cx - w / 2, y, w, h, 10 * s);
@@ -982,12 +1015,12 @@
       }
     }
     g.textAlign = 'center';
-    font(g, DISPLAY, 400, (L.square ? 54 : 66) * s);
+    font(g, DISPLAY, 400, (L.narrow ? 54 : 66) * s);
     g.fillStyle = r.color;
-    g.fillText(head, cx, y + (L.square ? 56 : 66) * s);
+    g.fillText(head, cx, y + (L.narrow ? 56 : 66) * s);
     font(g, TEXT, 500, 20 * s);
     g.fillStyle = C.paint;
-    g.fillText(sub, cx, y + (L.square ? 80 : 92) * s);
+    g.fillText(sub, cx, y + (L.narrow ? 80 : 92) * s);
     g.textAlign = 'left';
     g.globalAlpha = 1;
     void tl;
@@ -998,10 +1031,11 @@
     font(g, TEXT, 500, 16 * s);
     g.fillStyle = 'rgba(142,151,168,0.85)';
     g.textAlign = 'right';
-    g.fillText(GR.repoUrl, L.W - (L.square ? 44 : 48) * s, L.H - (L.square ? 12 : 30) * s);
+    const fy = L.H - (L.square ? 12 : L.tall ? 44 : 30) * s;
+    g.fillText(GR.repoUrl, L.W - (L.tall ? 60 : L.square ? 44 : 48) * s, fy);
     g.textAlign = 'left';
     if (opts.demo) {
-      g.fillText('Demo race with made-up ghosts', L.square ? 44 * s : L.track.x, L.H - (L.square ? 12 : 30) * s);
+      g.fillText('Demo race with made-up ghosts', L.tall ? 60 * s : L.square ? 44 * s : L.track.x, fy);
     }
   }
 
@@ -1013,8 +1047,8 @@
     const a = ease((t - 0.1) / 0.4);
     g.globalAlpha = a;
 
-    const sq = L.square;
-    const cw = sq ? W - 88 * s : 1560 * s;
+    const sq = L.narrow;
+    const cw = L.tall ? W - 120 * s : sq ? W - 88 * s : 1560 * s;
     const cx = (W - cw) / 2;
     const nRows = race.racers.length;
     const block = (sq ? 300 : 330) * s + nRows * (sq ? 78 : 84) * s;
@@ -1102,7 +1136,7 @@
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.drawImage(sc.bg, 0, 0, W, H);
-    if (L.square) drawWordmark(g, L.header.x, L.header.y + 50 * s, 54 * s);
+    if (L.narrow) drawWordmark(g, L.header.x, L.header.y + 50 * s, (L.tall ? 66 : 54) * s);
     else drawWordmark(g, L.tower.x, L.tower.y + 52 * s, 60 * s);
     const cx = L.track.x + L.track.w / 2;
     const cy = L.track.y + L.track.h / 2;

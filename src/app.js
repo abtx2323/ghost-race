@@ -17,6 +17,7 @@
     runs: [],
     demo: false,
     demoTitle: '',
+    shared: false,
     mode: 'time',
     skipIdle: true,
     details: false,
@@ -36,11 +37,12 @@
   // --------------------------------------------------------------- render --
 
   function size() {
+    if (state.aspect === 'tall') return { w: 1080, h: 1920 };
     return state.aspect === 'square' ? { w: 1080, h: 1080 } : { w: 1920, h: 1080 };
   }
 
   function renderOpts() {
-    return { title: state.title || (state.demo ? state.demoTitle : ''), showDetails: state.details, demo: state.demo, timeline: state.timeline };
+    return { title: state.title || (state.demo ? state.demoTitle : state.sharedTitle || ''), showDetails: state.details, demo: state.demo, timeline: state.timeline };
   }
 
   function draw() {
@@ -220,6 +222,8 @@
     const off = !state.race;
     $('export').disabled = off || !!state.exporting;
     $('png').disabled = off || !!state.exporting;
+    $('share').disabled = off;
+    if (off) $('share-url').hidden = true;
     $('play').disabled = off;
     $('restart').disabled = off;
     $('scrub').disabled = off;
@@ -227,8 +231,8 @@
 
   // ----------------------------------------------------------- loading ----
 
-  function status(text, kind) {
-    const el = $('status');
+  function status(text, kind, where) {
+    const el = $(where === 'share' ? 'share-status' : 'status');
     el.textContent = text || '';
     el.className = 'status' + (kind ? ' is-' + kind : '');
   }
@@ -246,12 +250,23 @@
     return name + ' #' + i;
   }
 
+  function clearShareHash() {
+    try {
+      if (root.location.hash.startsWith(GR.SHARE_PREFIX)) root.history.replaceState(null, '', root.location.pathname + root.location.search);
+    } catch (e) {
+      /* some hosts don't allow history changes */
+    }
+  }
+
   async function addFiles(fileList) {
     const files = Array.from(fileList || []);
     if (!files.length) return;
-    if (state.demo) {
-      state.runs = state.runs.filter((r) => !r.demo);
+    if (state.demo || state.shared) {
+      state.runs = state.runs.filter((r) => !r.demo && !r.shared);
       state.demo = false;
+      state.shared = false;
+      state.sharedTitle = '';
+      clearShareHash();
     }
     const added = [];
     const errors = [];
@@ -286,12 +301,62 @@
   }
 
   function loadDemo() {
+    clearShareHash();
+    state.shared = false;
+    state.sharedTitle = '';
     state.runs = GR.demoRuns();
     state.runs.forEach((r, i) => (r.color = GR.PALETTE[i]));
     state.demo = true;
     state.demoTitle = 'Fix the flaky checkout test';
     rebuild({ restart: true });
     status('Demo race loaded. These ghosts are made up; add your own logs to race real agents.');
+  }
+
+  // -------------------------------------------------------------- share ---
+
+  async function loadShared(hash) {
+    try {
+      const payload = await GR.decodeShare(hash);
+      const shared = GR.runsFromShare(payload);
+      shared.runs.forEach((r, i) => (r.color = r.color || GR.PALETTE[i % GR.PALETTE.length]));
+      state.runs = shared.runs;
+      state.demo = false;
+      state.shared = true;
+      state.sharedTitle = shared.title;
+      state.mode = shared.mode;
+      state.skipIdle = shared.skipIdle;
+      $('skip-idle').checked = shared.skipIdle;
+      rebuild({ restart: true });
+      status(shared.fromCli ? 'Your race is ready. Export a clip or copy a share link below.' : 'You are watching a shared race. Add your own logs to race your agents.');
+      return true;
+    } catch (e) {
+      status(e.message || String(e), 'error');
+      return false;
+    }
+  }
+
+  async function copyShareLink() {
+    if (!state.race) return;
+    if (!GR.canShare()) {
+      status("This browser can't make share links. Try the latest Chrome, Edge, Firefox or Safari.", 'error', 'share');
+      return;
+    }
+    const payload = GR.makeSharePayload(state.runs, { title: renderOpts().title, mode: state.race.mode, skipIdle: state.skipIdle });
+    const url = GR.shareUrl(await GR.encodeShare(payload));
+    const field = $('share-url');
+    field.value = url;
+    field.hidden = false;
+    let copied = false;
+    try {
+      await root.navigator.clipboard.writeText(url);
+      copied = true;
+    } catch (e) {
+      field.focus();
+      field.select();
+    }
+    const kb = Math.round(url.length / 1024);
+    const long = url.length > 8000 ? ' It is long (' + kb + ' KB) because the sessions are big; some apps may cut long links, so test it first.' : '';
+    status((copied ? 'Share link copied.' : 'Copy the share link from the box below.') + long, copied ? 'good' : '', 'share');
   }
 
   // ------------------------------------------------------------- export ---
@@ -303,8 +368,8 @@
 
   async function exportClip() {
     if (!state.race || state.exporting) return;
-    if (!GR.pickVideoMime()) {
-      status("This browser can't record video. Try the latest Chrome, Edge or Safari, or use Save results image.", 'error');
+    if (!GR.canExportVideoAtAll()) {
+      status("This browser can't make video. Try the latest Chrome, Edge or Safari, or use Save results image.", 'error', 'share');
       return;
     }
     setPlaying(false);
@@ -326,18 +391,21 @@
           state.t = Math.min(t, state.timeline.total);
           syncTransport();
         },
-        onProgress: (f) => {
+        onProgress: (f, how) => {
           $('rec-progress').value = f;
-          $('rec-text').textContent = 'Recording your clip, ' + Math.round(f * 100) + '%';
+          $('rec-text').textContent = (how === 'render' ? 'Rendering your clip, ' : 'Recording your clip, ') + Math.round(f * 100) + '%';
+        },
+        onFallback: () => {
+          $('rec-text').textContent = 'Recording your clip in real time';
         },
       });
       const name = 'ghost-race-' + stamp() + '.' + out.ext;
       await GR.download(out.blob, name);
-      if (out.ext === 'mp4') status('Saved ' + name + '. It is ready to post on X.', 'good');
-      else status('Saved ' + name + '. This browser can only record WebM, which X does not accept. Convert it to MP4, or export from the latest Chrome or Safari.', 'error');
+      if (out.ext === 'mp4') status('Saved ' + name + '. It is ready to post on X.', 'good', 'share');
+      else status('Saved ' + name + '. This browser can only record WebM, which X does not accept. Convert it to MP4, or export from the latest Chrome or Safari.', 'error', 'share');
     } catch (e) {
-      if (e && e.name === 'AbortError') status(e.message === 'Save cancelled.' ? 'Save cancelled.' : 'Export cancelled.');
-      else status('The export stopped: ' + (e && e.message ? e.message : e), 'error');
+      if (e && e.name === 'AbortError') status(e.message === 'Save cancelled.' ? 'Save cancelled.' : 'Export cancelled.', '', 'share');
+      else status('The export stopped: ' + (e && e.message ? e.message : e), 'error', 'share');
     } finally {
       state.exporting = null;
       $('recording').hidden = true;
@@ -354,9 +422,9 @@
     const name = 'ghost-race-results-' + stamp() + '.png';
     try {
       await GR.download(blob, name);
-      status('Saved ' + name + '.', 'good');
+      status('Saved ' + name + '.', 'good', 'share');
     } catch (e) {
-      status(e && e.name === 'AbortError' ? 'Save cancelled.' : (e && e.message) || String(e), e && e.name === 'AbortError' ? '' : 'error');
+      status(e && e.name === 'AbortError' ? 'Save cancelled.' : (e && e.message) || String(e), e && e.name === 'AbortError' ? '' : 'error', 'share');
     }
   }
 
@@ -426,6 +494,10 @@
       if (!reducedMotion) setPlaying(true);
     });
     $('export').addEventListener('click', exportClip);
+    $('share').addEventListener('click', copyShareLink);
+    root.addEventListener('hashchange', () => {
+      if (root.location.hash.startsWith(GR.SHARE_PREFIX)) loadShared(root.location.hash);
+    });
     $('png').addEventListener('click', exportPng);
     $('rec-cancel').addEventListener('click', () => state.exporting && state.exporting.abort());
 
@@ -472,8 +544,13 @@
       /* fall back to system fonts */
     }
     GR.clearRenderCache();
-    loadDemo();
-    status('');
+    const hash = root.location.hash || '';
+    const fromLink = hash.startsWith(GR.SHARE_PREFIX) && (await loadShared(hash));
+    if (!fromLink) {
+      const keep = $('status').textContent;
+      loadDemo();
+      status(keep, keep ? 'error' : '');
+    }
     if (!reducedMotion) setPlaying(true);
   }
 

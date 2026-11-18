@@ -1,0 +1,15 @@
+{"type":"thread.started","thread_id":"0199a213-81c0-7800-8aa1-bbab2a035a53","timestamp":"2026-11-01T15:00:00.000Z"}
+{"type":"turn.started","timestamp":"2026-11-01T15:00:00.100Z"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"**Scanning tests**"},"timestamp":"2026-11-01T15:00:02.000Z"}
+{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"bash -lc 'rg -n setTimeout src'","aggregated_output":"","exit_code":null,"status":"in_progress"},"timestamp":"2026-11-01T15:00:03.000Z"}
+{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"bash -lc 'rg -n setTimeout src'","aggregated_output":"src/payment-mock.ts:12","exit_code":0,"status":"completed"},"timestamp":"2026-11-01T15:00:03.400Z"}
+{"type":"item.completed","item":{"id":"item_2","type":"file_change","changes":[{"path":"/tmp/wt/codex/src/payment-mock.ts","kind":"update"}],"status":"completed"},"timestamp":"2026-11-01T15:00:09.000Z"}
+{"type":"item.started","item":{"id":"item_3","type":"command_execution","command":"bash -lc 'npm test -- checkout'","status":"in_progress"},"timestamp":"2026-11-01T15:00:12.000Z"}
+{"type":"item.completed","item":{"id":"item_3","type":"command_execution","command":"bash -lc 'npm test -- checkout'","aggregated_output":"FAIL","exit_code":1,"status":"failed"},"timestamp":"2026-11-01T15:00:25.000Z"}
+{"type":"item.started","item":{"id":"item_4","type":"todo_list","items":[{"text":"fix mock","completed":false}]},"timestamp":"2026-11-01T15:00:26.000Z"}
+{"type":"item.completed","item":{"id":"item_4","type":"todo_list","items":[{"text":"fix mock","completed":true}]},"timestamp":"2026-11-01T15:00:40.000Z"}
+{"type":"item.completed","item":{"id":"item_5","type":"file_change","changes":[{"path":"/tmp/wt/codex/test/checkout.test.ts","kind":"update"}],"status":"completed"},"timestamp":"2026-11-01T15:00:30.000Z"}
+{"type":"item.started","item":{"id":"item_6","type":"command_execution","command":"bash -lc 'npm test'","status":"in_progress"},"timestamp":"2026-11-01T15:00:31.000Z"}
+{"type":"item.completed","item":{"id":"item_6","type":"command_execution","command":"bash -lc 'npm test'","exit_code":0,"status":"completed"},"timestamp":"2026-11-01T15:00:50.000Z"}
+{"type":"item.completed","item":{"id":"item_7","type":"agent_message","text":"Fixed the flaky test."},"timestamp":"2026-11-01T15:00:52.000Z"}
+{"type":"turn.completed","usage":{"input_tokens":48000,"cached_input_tokens":30000,"output_tokens":2100},"timestamp":"2026-11-01T15:00:52.500Z"}

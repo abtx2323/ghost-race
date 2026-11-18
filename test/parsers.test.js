@@ -209,3 +209,106 @@ test('Oversized ghost files are refused with a clear message', () => {
   const events = Array.from({ length: 200001 }, (_, i) => ({ t: i, type: 'tool' }));
   assert.throws(() => GR.parseLog(JSON.stringify({ events }), 'huge.ghost.json'), /more than 200,000 events/);
 });
+
+test('Share links round-trip a race without commands, files or prompts', async () => {
+  require('../src/share.js');
+  const [cc] = GR.parseLog(read('claude-code-sample.jsonl'), 'claude-code-sample.jsonl');
+  const [cx] = GR.parseLog(read('codex-sample.jsonl'), 'codex-sample.jsonl');
+  cc.name = 'Claude Code run';
+  cx.outcome = 'dnf';
+  const payload = GR.makeSharePayload([cc, cx], { title: 'Flaky test', mode: 'tokens', skipIdle: true });
+  const encoded = await GR.encodeShare(payload);
+  assert.match(encoded, /^[A-Za-z0-9_-]+$/);
+  const back = GR.runsFromShare(await GR.decodeShare('#race=' + encoded));
+  assert.equal(back.title, 'Flaky test');
+  assert.equal(back.mode, 'tokens');
+  const [a, b] = back.runs;
+  assert.equal(a.name, 'Claude Code run');
+  assert.equal(a.modelLabel, 'Sonnet 4.5');
+  assert.equal(b.outcome, 'dnf');
+  assert.equal(a.totals.tools, cc.totals.tools);
+  assert.equal(a.totals.crashes, cc.totals.crashes);
+  assert.equal(a.totals.tokens, cc.totals.tokens);
+  assert.ok(Math.abs(a.totals.duration - cc.totals.duration) < 0.2);
+  assert.deepEqual(a.events.filter((e) => e.kind === 'tool').map((e) => e.cat), cc.events.filter((e) => e.kind === 'tool').map((e) => e.cat));
+  // nothing private travels in the link
+  const json = JSON.stringify(payload);
+  for (const secret of ['checkout.test.ts', 'npm test', 'The checkout test is flaky', 'payment-mock']) assert.ok(!json.includes(secret), secret);
+});
+
+test('Broken or hostile share links fail with a clear message', async () => {
+  require('../src/share.js');
+  await assert.rejects(GR.decodeShare('#race=not!base64'), /broken or incomplete/);
+  await assert.rejects(GR.decodeShare('#race=' + 'A'.repeat(500000)), /too long/);
+  // a valid link to a payload that isn't a race
+  const enc = await GR.encodeShare({ hello: 'world' });
+  await assert.rejects(GR.decodeShare(enc), /isn't a Ghost Race link/);
+  // a zip bomb: 20 MB of zeros compresses tiny but must be refused
+  const big = { v: 1, r: [{ n: 'x', e: new Array(5000000).fill(0) }] };
+  const bomb = await GR.encodeShare(big);
+  await assert.rejects(GR.decodeShare(bomb), /broken or incomplete/);
+});
+
+test('claude -p stream-json: timestamps, cost and model', () => {
+  const [run] = GR.parseLog(read('claude-stream-sample.jsonl'), 'claude-stream-sample.jsonl');
+  assert.equal(run.source, 'claude-code');
+  assert.equal(run.modelLabel, 'Sonnet 4.5');
+  assert.equal(run.totals.tools, 3);
+  assert.equal(run.totals.talks, 2);
+  assert.equal(run.totals.cost, 0.0412);
+  assert.equal(run.totals.duration, 34);
+  assert.deepEqual(run.events.filter((e) => e.kind === 'tool').map((e) => e.cat), ['read', 'edit', 'test']);
+});
+
+test('codex exec --json: items, exit codes, file changes and turn usage', () => {
+  const [run] = GR.parseLog(read('codex-exec-sample.jsonl'), 'codex-exec-sample.jsonl');
+  assert.equal(run.source, 'codex');
+  assert.deepEqual(run.events.filter((e) => e.kind === 'tool').map((e) => e.cat), ['search', 'edit', 'test', 'plan', 'edit', 'test']);
+  assert.equal(run.totals.crashes, 1);
+  assert.equal(run.events.find((e) => e.kind === 'crash').cat, 'test');
+  assert.equal(run.totals.tokens, 50100);
+  assert.equal(run.events.find((e) => e.name === 'apply_patch').detail, 'payment-mock.ts');
+  assert.equal(GR._parsers.unwrapShell("bash -lc 'npm test'"), 'npm test');
+});
+
+test('OpenTelemetry: one ghost per trace, GenAI and OpenInference attributes', () => {
+  const runs = GR.parseLog(read('otel-sample.json'), 'otel-sample.json');
+  assert.equal(runs.length, 2);
+  const [a, b] = runs;
+  assert.equal(a.sourceLabel, 'OpenTelemetry');
+  assert.equal(a.modelLabel, 'GPT-4.1');
+  assert.equal(a.totals.tools, 2);
+  assert.equal(a.totals.crashes, 1);
+  assert.equal(a.totals.tokens, 1200 + 80 + 1500 + 120);
+  assert.equal(b.modelLabel, 'Haiku 4.5');
+  assert.equal(b.totals.tools, 1);
+  assert.equal(b.events.find((e) => e.kind === 'tool').detail, 'search_docs');
+});
+
+test('OpenAI Agents SDK span exports', () => {
+  const [run] = GR.parseLog(read('openai-agents-sample.jsonl'), 'openai-agents-sample.jsonl');
+  assert.equal(run.sourceLabel, 'OpenAI Agents');
+  assert.equal(run.modelLabel, 'GPT-4.1 Mini');
+  assert.deepEqual(run.events.filter((e) => e.kind === 'tool').map((e) => e.cat), ['agent', 'other', 'other']);
+  assert.equal(run.totals.crashes, 1);
+  assert.equal(run.totals.tokens, 700 + 40 + 900 + 70);
+});
+
+test('Gemini CLI saved sessions', () => {
+  const [run] = GR.parseLog(read('gemini-session-sample.json'), 'gemini-session-sample.json');
+  assert.equal(run.sourceLabel, 'Gemini CLI');
+  assert.equal(run.modelLabel, 'Gemini 2.5 Pro');
+  assert.equal(run.task, 'The checkout test is flaky. Please fix it.');
+  assert.deepEqual(run.events.filter((e) => e.kind === 'tool').map((e) => e.cat), ['read', 'search', 'edit', 'test', 'test']);
+  assert.equal(run.totals.crashes, 1);
+  assert.equal(run.totals.tokens, 8420 + 9100 + 9800);
+  // checkpoints have no timestamps
+  const [cp] = GR.parseLog(JSON.stringify([
+    { role: 'user', parts: [{ text: 'fix it' }] },
+    { role: 'model', parts: [{ functionCall: { name: 'read_file', args: { absolute_path: '/a/b.ts' } } }] },
+    { role: 'user', parts: [{ functionResponse: { name: 'read_file', response: { error: 'nope' } } }] },
+    { role: 'model', parts: [{ text: 'done' }] },
+  ]), 'checkpoint.json');
+  assert.equal(cp.timing, 'synthetic');
+  assert.equal(cp.totals.crashes, 1);
+});

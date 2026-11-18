@@ -1,0 +1,260 @@
+{
+ "resourceSpans": [
+  {
+   "resource": {
+    "attributes": [
+     {
+      "key": "service.name",
+      "value": {
+       "stringValue": "support-agent"
+      }
+     }
+    ]
+   },
+   "scopeSpans": [
+    {
+     "scope": {
+      "name": "demo"
+     },
+     "spans": [
+      {
+       "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+       "spanId": "1",
+       "name": "invoke_agent support",
+       "startTimeUnixNano": "1793545200000000000",
+       "endTimeUnixNano": "1793545220000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "invoke_agent"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+       "spanId": "2",
+       "name": "chat gpt-4.1",
+       "startTimeUnixNano": "1793545200200000000",
+       "endTimeUnixNano": "1793545203000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "gpt-4.1"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "1200"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "80"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+       "spanId": "3",
+       "name": "execute_tool lookup_order",
+       "startTimeUnixNano": "1793545203100000000",
+       "endTimeUnixNano": "1793545204000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "lookup_order"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+       "spanId": "4",
+       "name": "execute_tool refund",
+       "startTimeUnixNano": "1793545204200000000",
+       "endTimeUnixNano": "1793545206000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "execute_tool"
+         }
+        },
+        {
+         "key": "gen_ai.tool.name",
+         "value": {
+          "stringValue": "refund"
+         }
+        }
+       ],
+       "status": {
+        "code": 2,
+        "message": "boom"
+       }
+      },
+      {
+       "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
+       "spanId": "5",
+       "name": "chat gpt-4.1",
+       "startTimeUnixNano": "1793545206100000000",
+       "endTimeUnixNano": "1793545209000000000",
+       "attributes": [
+        {
+         "key": "gen_ai.operation.name",
+         "value": {
+          "stringValue": "chat"
+         }
+        },
+        {
+         "key": "gen_ai.request.model",
+         "value": {
+          "stringValue": "gpt-4.1"
+         }
+        },
+        {
+         "key": "gen_ai.usage.input_tokens",
+         "value": {
+          "intValue": "1500"
+         }
+        },
+        {
+         "key": "gen_ai.usage.output_tokens",
+         "value": {
+          "intValue": "120"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+       "spanId": "6",
+       "name": "LLM",
+       "startTimeUnixNano": "1793545201000000000",
+       "endTimeUnixNano": "1793545202500000000",
+       "attributes": [
+        {
+         "key": "openinference.span.kind",
+         "value": {
+          "stringValue": "LLM"
+         }
+        },
+        {
+         "key": "llm.model_name",
+         "value": {
+          "stringValue": "claude-haiku-4-5"
+         }
+        },
+        {
+         "key": "llm.token_count.prompt",
+         "value": {
+          "intValue": "900"
+         }
+        },
+        {
+         "key": "llm.token_count.completion",
+         "value": {
+          "intValue": "60"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+       "spanId": "7",
+       "name": "search_docs",
+       "startTimeUnixNano": "1793545202600000000",
+       "endTimeUnixNano": "1793545203000000000",
+       "attributes": [
+        {
+         "key": "openinference.span.kind",
+         "value": {
+          "stringValue": "TOOL"
+         }
+        },
+        {
+         "key": "tool.name",
+         "value": {
+          "stringValue": "search_docs"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      },
+      {
+       "traceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb2",
+       "spanId": "8",
+       "name": "LLM",
+       "startTimeUnixNano": "1793545203100000000",
+       "endTimeUnixNano": "1793545205000000000",
+       "attributes": [
+        {
+         "key": "openinference.span.kind",
+         "value": {
+          "stringValue": "LLM"
+         }
+        },
+        {
+         "key": "llm.model_name",
+         "value": {
+          "stringValue": "claude-haiku-4-5"
+         }
+        },
+        {
+         "key": "llm.token_count.prompt",
+         "value": {
+          "intValue": "1100"
+         }
+        },
+        {
+         "key": "llm.token_count.completion",
+         "value": {
+          "intValue": "90"
+         }
+        }
+       ],
+       "status": {
+        "code": 1
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

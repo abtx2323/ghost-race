@@ -33,15 +33,15 @@
   GR.CATEGORIES = CATEGORIES;
 
   const NAME_RULES = [
-    ['agent', /^(task|agent|spawn_?agent|subagent|delegate)$/],
+    ['agent', /^(task|agent|spawn_?agent|subagent|delegate|handoff|transfer_to_\w+)$/],
     ['test', /^(run_?tests?|tests?|pytest|jest|vitest)$/],
-    ['plan', /^(todowrite|todo_write|update_plan|exitplanmode|enterplanmode|plan)$/],
+    ['plan', /^(todowrite|todo_write|write_todos|update_plan|todo_list|exitplanmode|enterplanmode|plan)$/],
     ['ask', /^(askuserquestion|request_user_input|ask_user|ask_human)$/],
-    ['edit', /^(edit|multiedit|write|notebookedit|apply_patch|write_file|edit_file|str_replace\w*|create_file|insert)$/],
-    ['read', /^(read|view|cat|notebookread|read_file|ls|list_dir|list_files|open_file)$/],
-    ['search', /^(grep|glob|search|rg|find|search_files|codebase_search|file_search|grep_search)$/],
-    ['web', /^(webfetch|websearch|web_search|web_fetch|fetch|browser\w*|web_search_call)$/],
-    ['shell', /^(bash|bashoutput|killshell|killbash|shell|exec_command|local_shell_call|run_command|terminal|run_terminal_cmd|write_stdin|container\.exec|powershell)$/],
+    ['edit', /^(edit|multiedit|write|notebookedit|apply_patch|write_file|edit_file|str_replace\w*|create_file|insert|replace|smart_edit|file_change)$/],
+    ['read', /^(read|view|cat|notebookread|read_file|read_many_files|ls|list_dir|list_directory|list_files|open_file)$/],
+    ['search', /^(grep|glob|search|rg|find|search_files|search_file_content|codebase_search|file_search|grep_search|retriever|retrieve)$/],
+    ['web', /^(webfetch|websearch|web_search|web_fetch|google_web_search|fetch|browser\w*|web_search_call)$/],
+    ['shell', /^(bash|bashoutput|killshell|killbash|shell|exec_command|local_shell_call|run_command|run_shell_command|terminal|run_terminal_cmd|write_stdin|container\.exec|powershell|command_execution)$/],
   ];
 
   GR.categorizeTool = function categorizeTool(name, command) {
@@ -119,7 +119,7 @@
       const rest = parts.slice(2).filter((p) => !/^\d{4,}$/.test(p));
       return 'GPT-' + parts[1] + (rest.length ? ' ' + rest.map(cap).join(' ') : '');
     }
-    if (m.startsWith('gemini-')) return 'Gemini ' + m.slice(7).replace(/-/g, ' ');
+    if (m.startsWith('gemini-')) return 'Gemini ' + m.slice(7).split('-').filter((p) => !/^\d{3,}$/.test(p)).map(cap).join(' ');
     return String(model);
   };
 

@@ -83,8 +83,12 @@
             <dd>Each session is a <code>.jsonl</code> file in <code>~/.claude/projects/</code>, in a folder named after your project. List the newest with <code>ls -t ~/.claude/projects/*/*.jsonl | head</code></dd>
             <dt>Codex CLI</dt>
             <dd>Sessions are saved as <code>~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl</code></dd>
-            <dt>Any other agent</dt>
-            <dd>Write a small <code>.ghost.json</code> file. The format is a list of timed events; see <a href="https://github.com/abtx2323/ghost-race/blob/main/docs/FORMAT.md">the format guide</a>.</dd>
+            <dt>Gemini CLI</dt>
+            <dd>Saved chats are in <code>~/.gemini/tmp/</code>, in a <code>chats</code> folder for each project.</dd>
+            <dt>OpenAI Agents SDK, OpenTelemetry and anything else</dt>
+            <dd>See <a href="https://github.com/abtx2323/ghost-race/blob/main/docs/FORMAT.md">the format guide</a> for how to export traces, or write a small <code>.ghost.json</code> file.</dd>
+            <dt>Race two agents with one command</dt>
+            <dd>In your project, run <code>npx github:abtx2323/ghost-race race "your task"</code>. It runs Claude Code and Codex side by side in separate git worktrees and opens the race here.</dd>
             <dt>Can't see the folder?</dt>
             <dd>Folders starting with a dot are hidden. On a Mac, press <kbd>Cmd</kbd> <kbd>Shift</kbd> <kbd>G</kbd> in the file picker and paste the path. On Windows, paste <code>%USERPROFILE%\.claude\projects</code> into the address bar.</dd>
           </dl>
@@ -102,6 +106,7 @@
           <legend>Clip shape</legend>
           <label><input type="radio" name="aspect" value="wide" checked><span>Wide 16:9</span></label>
           <label><input type="radio" name="aspect" value="square"><span>Square 1:1</span></label>
+          <label><input type="radio" name="aspect" value="tall"><span>Tall 9:16</span></label>
         </fieldset>
         <label class="field">
           <span>Race length</span>
@@ -116,7 +121,11 @@
         <div class="row">
           <button type="button" class="btn btn-primary" id="export">Export clip</button>
           <button type="button" class="btn btn-quiet" id="png">Save results image</button>
+          <button type="button" class="btn btn-quiet" id="share">Copy share link</button>
         </div>
+        <p class="status" id="share-status" role="status" aria-live="polite"></p>
+        <input type="text" class="share-url" id="share-url" readonly hidden aria-label="Share link">
+        <p class="fine">A share link replays this race in anyone's browser. It holds ghost names, timings and tool types, never your commands, file names or prompts.</p>
         <p class="fine">Your logs never leave this device. Ghost Race runs entirely in your browser, and file names and commands stay hidden in clips unless you turn them on.</p>
       </section>
     </div>
@@ -132,7 +141,9 @@
   <script src="src/parsers.js"></script>
   <script src="src/race.js"></script>
   <script src="src/render.js"></script>
+  <script src="src/mp4.js"></script>
   <script src="src/export.js"></script>
+  <script src="src/share.js"></script>
   <script src="src/demo.js"></script>
   <script src="src/app.js"></script>
 </body>
