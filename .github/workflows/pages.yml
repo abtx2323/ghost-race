@@ -9,10 +9,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Read-only by default; only the deploy job gets the Pages and OIDC token scopes it needs.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -22,6 +21,10 @@ jobs:
   deploy:
     if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
