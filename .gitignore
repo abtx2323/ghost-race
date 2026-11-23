@@ -4,3 +4,9 @@ dist/
 # Never commit real agent session logs: they can contain code, paths and secrets.
 *.jsonl
 !examples/*.jsonl
+
+# Secrets and local config: never commit these
+.env
+.env.*
+*.pem
+*.key
